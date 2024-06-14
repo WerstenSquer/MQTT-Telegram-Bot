@@ -1,10 +1,20 @@
-from paho.mqtt import client as mqtt
+import asyncio
+from aiogram import Bot, Dispatcher, types
 
-client_id = "My_connection"
-port = 1883
-broker = "broker.emqx.io"
+from cmds_list import private
+from handlers import user_router
 
-client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id)
-client.connect(broker, port)
+TOKEN = '6759032280:AAETYeIQshz0ma72NbM4tS-hnhbbTST86PI'
+ALLOWED_UPDATES = ['message', 'edited_message']
 
-client.publish("test", "hello")
+bot = Bot(token=TOKEN)
+dp = Dispatcher()
+dp.include_router(user_router)
+
+async def main():
+    await bot.delete_webhook(drop_pending_updates=True)
+    await bot.delete_my_commands(scope=types.BotCommandScopeAllPrivateChats()) # удаление команд для их переназначения
+    await bot.set_my_commands(commands=private, scope=types.BotCommandScopeAllPrivateChats())
+    await dp.start_polling(bot, allowed_updates=ALLOWED_UPDATES)
+
+asyncio.run(main())
