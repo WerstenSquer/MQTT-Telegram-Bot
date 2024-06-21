@@ -5,14 +5,15 @@ from aiogram.fsm.context import FSMContext
 import redis
 
 import kbds
+import mqtt_sub
 
 user_router = Router()
 r = redis.Redis(host='localhost', port=6379, db=0)
 
-@user_router.message(Command('start'))
+@user_router.message(StateFilter(None), Command('start'))
 async def start_cmd(message: types.Message):
     await message.answer(
-        'Привет! ' + (str)(message.from_user.id), reply_markup=kbds.start_kbd.as_markup(resize_keyboard=True, input_field_placeholder='Выберите действие')
+        'Пользователь с ID:' + (str)(message.from_user.id), reply_markup=kbds.start_kbd.as_markup(resize_keyboard=True, input_field_placeholder='Выберите действие')
     )
 
 class AddMAC(StatesGroup):
@@ -53,8 +54,8 @@ async def cancel_cmd(message: types.Message, state: FSMContext):
     )
     await state.clear()
 
-@user_router.message(AddMAC.address, F.text)
-async def text_cmd(message: types.Message, state: FSMContext):
+@user_router.message(StateFilter(AddMAC.address), AddMAC.address, F.text)
+async def add_cmd(message: types.Message, state: FSMContext):
     await state.update_data(address=message.text)
     try:
         await r.sadd((str)(message.from_user.id), message.text)
@@ -65,7 +66,7 @@ async def text_cmd(message: types.Message, state: FSMContext):
     )
     await state.clear()
 
-@user_router.message(DelMAC.address, F.text)
+@user_router.message(StateFilter(DelMAC.address), DelMAC.address, F.text)
 async def delete_cmd(message: types.Message, state: FSMContext):
     await state.update_data(address=message.text)
     try:
@@ -77,12 +78,11 @@ async def delete_cmd(message: types.Message, state: FSMContext):
     )
     await state.clear()
 
-@user_router.message(Command('see_mac'))
-@user_router.message(F.text == 'Просмотреть MAC-адреса')
+@user_router.message(StateFilter(None), Command('see_mac'))
+@user_router.message(StateFilter(None), F.text == 'Просмотреть MAC-адреса')
 async def see_mac_cmd(message: types.Message):
     text = r.smembers((str)(message.from_user.id))
     for mac in text:
         await message.answer(mac)
-
 
 
